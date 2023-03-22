@@ -325,4 +325,5 @@ class ReadCommentSerializer(serializers.ModelSerializer):
         return import_string(settings.COMMENTS_XTD_API_GET_USER_AVATAR)(obj)
 
     def get_permalink(self, obj):
-        return obj.get_absolute_url()
+        return ""
+        # return obj.get_absolute_url()

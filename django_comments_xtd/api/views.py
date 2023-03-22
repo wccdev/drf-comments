@@ -56,7 +56,8 @@ class CommentCreate(DefaultsMixin, generics.CreateAPIView):
             return Response(response_msg, status=400)
         if self.resp_dict['code'] == 201:  # The comment has been created.
             response.data.update({
-                'id': self.resp_dict['comment']['xtd_comment'].id
+                'id': self.resp_dict['comment']['xtd_comment'].id,
+                'user_name': self.resp_dict['comment'].get('user_name', None),
             })
             return response
         elif self.resp_dict['code'] in [202, 204, 403]:
