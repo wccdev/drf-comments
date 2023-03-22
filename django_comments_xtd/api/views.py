@@ -123,7 +123,7 @@ class ToggleFeedbackFlag(
     serializer_class = serializers.FlagSerializer
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
-    schema = AutoSchema(operation_id_base="Feedback")
+    # schema = AutoSchema(operation_id_base="Feedback")
 
     created = None
 
@@ -146,7 +146,7 @@ class CreateReportFlag(DefaultsMixin, generics.CreateAPIView):
     serializer_class = serializers.FlagSerializer
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
-    schema = AutoSchema(operation_id_base="ReportFlag")
+    # schema = AutoSchema(operation_id_base="ReportFlag")
 
     def post(self, request, *args, **kwargs):
         return super(CreateReportFlag, self).post(request, *args, **kwargs)
