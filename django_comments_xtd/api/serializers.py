@@ -22,7 +22,7 @@ from django_comments_xtd.signals import (should_request_be_authorized,
 from django_comments_xtd.utils import get_app_model_options
 
 
-COMMENT_MAX_LENGTH = getattr(settings, 'COMMENT_MAX_LENGTH', 3000)
+COMMENT_MAX_LENGTH = getattr(settings, 'COMMENT_MAX_LENGTH', None)
 
 
 class WriteCommentSerializer(serializers.Serializer):
@@ -31,11 +31,11 @@ class WriteCommentSerializer(serializers.Serializer):
     timestamp = serializers.CharField(required=False)
     security_hash = serializers.CharField(required=False)
     honeypot = serializers.CharField(required=False, allow_blank=True)
-    name = serializers.CharField(allow_blank=True)
-    email = serializers.EmailField(allow_blank=True)
+    # name = serializers.CharField(allow_blank=True)
+    # email = serializers.EmailField(allow_blank=True)
     url = serializers.URLField(required=False)
     comment = serializers.CharField(max_length=COMMENT_MAX_LENGTH)
-    followup = serializers.BooleanField(default=False)
+    followup = serializers.BooleanField(required=False, default=False)
     reply_to = serializers.IntegerField(default=0)
 
     form = None
@@ -43,6 +43,29 @@ class WriteCommentSerializer(serializers.Serializer):
     def __init__(self, *args, **kwargs):
         self.request = kwargs['context']['request']
         super(WriteCommentSerializer, self).__init__(*args, **kwargs)
+
+    def get_comment_name(self):
+        """Set the comment name"""
+        name = "unknown"
+        if self.request.user.is_authenticated:
+            if hasattr(self.request.user, "get_comment_display_name"):
+                name = self.request.user.get_comment_display_name()
+            elif hasattr(self.request.user, "get_username"):
+                name = self.request.user.get_username()
+            elif hasattr(self.request.user, "name"):
+                name = self.request.user.name
+            if name:
+                return name
+        return name
+
+    def get_comment_email(self):
+        """Set the comment email"""
+        if self.request.user.is_authenticated:
+            if hasattr(self.request.user, "get_email_field_name"):
+                email = getattr(self.request.user, self.request.user.get_email_field_name(), None)
+                if email:
+                    return email
+        return "unknown@wochacha.com"
 
     def validate_name(self, value):
         if value.strip():
@@ -86,6 +109,10 @@ class WriteCommentSerializer(serializers.Serializer):
         return value
 
     def validate(self, data):
+        data.update({
+            "name": data.get("name", self.get_comment_name()),
+            "email": data.get("email", self.get_comment_email()),
+        })
         ctype = data.get("content_type")
         object_pk = data.get("object_pk")
         if ctype is None or object_pk is None:
