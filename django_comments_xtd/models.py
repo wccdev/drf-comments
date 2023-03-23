@@ -10,6 +10,7 @@ from django_comments.managers import CommentManager
 from django_comments.models import Comment, CommentFlag
 
 from django_comments_xtd import get_model
+from django_comments_xtd.choices import CommentTypeChoices
 from django_comments_xtd.conf import settings
 
 
@@ -67,6 +68,8 @@ class XtdComment(Comment):
     followup = models.BooleanField(blank=True, default=False,
                                    help_text=_("Notify follow-up comments"))
     nested_count = models.IntegerField(default=0, db_index=True)
+    type = models.CharField(verbose_name="评论类型", max_length=16, choices=CommentTypeChoices.choices,
+                            blank=True, default=CommentTypeChoices.TYPE_NORMAL)
     objects = XtdCommentManager()
     norel_objects = CommentManager()
 

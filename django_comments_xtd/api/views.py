@@ -55,9 +55,14 @@ class CommentCreate(DefaultsMixin, generics.CreateAPIView):
                 response_msg = [k for k in six.iterkeys(serializer.errors)]
             return Response(response_msg, status=400)
         if self.resp_dict['code'] == 201:  # The comment has been created.
+            avatar_color = None
+            if self.resp_dict['comment'].get('user') and hasattr(self.resp_dict['comment']['user'], 'avatar_color'):
+                avatar_color = self.resp_dict['comment']['user'].avatar_color
             response.data.update({
                 'id': self.resp_dict['comment']['xtd_comment'].id,
                 'user_name': self.resp_dict['comment'].get('user_name', None),
+                'avatar_color': avatar_color,
+                'submit_date': self.resp_dict['comment'].get('submit_date', None),
             })
             return response
         elif self.resp_dict['code'] in [202, 204, 403]:
@@ -73,13 +78,13 @@ class CommentList(DefaultsMixin, generics.ListAPIView):
     permission_classes = (permissions.AllowAny,)
 
     def get_queryset(self, **kwargs):
-        content_type_arg = self.kwargs.get('content_type', None)
-        object_pk_arg = self.kwargs.get('object_pk', None)
-        app_label, model = content_type_arg.split("-")
+        content_type_arg = self.request.query_params.get('content_type', None)
+        object_pk_arg = self.request.query_params.get('object_pk', None)
         try:
+            app_label, model = content_type_arg.split(".")
             content_type = ContentType.objects.get_by_natural_key(app_label,
                                                                   model)
-        except ContentType.DoesNotExist:
+        except (AssertionError, ValueError, ContentType.DoesNotExist):
             qs = XtdComment.objects.none()
         else:
             flags_qs = CommentFlag.objects.filter(flag__in=[
@@ -94,7 +99,7 @@ class CommentList(DefaultsMixin, generics.ListAPIView):
                     object_pk=object_pk_arg,
                     site__pk=get_current_site_id(self.request),
                     is_public=True
-                )
+                ).order_by('-submit_date')
         return qs
 
 

@@ -13,6 +13,7 @@ from django_comments.signals import comment_will_be_posted, comment_was_posted
 from rest_framework import exceptions, serializers
 
 from django_comments_xtd import get_model, signed, views
+from django_comments_xtd.choices import CommentTypeChoices
 from django_comments_xtd.conf import settings
 from django_comments_xtd.models import (TmpXtdComment, XtdComment,
                                         LIKEDIT_FLAG, DISLIKEDIT_FLAG,
@@ -34,9 +35,11 @@ class WriteCommentSerializer(serializers.Serializer):
     # name = serializers.CharField(allow_blank=True)
     # email = serializers.EmailField(allow_blank=True)
     url = serializers.URLField(required=False)
-    comment = serializers.CharField(max_length=COMMENT_MAX_LENGTH)
+    comment = serializers.CharField(max_length=COMMENT_MAX_LENGTH, allow_blank=True)
     followup = serializers.BooleanField(required=False, default=False)
     reply_to = serializers.IntegerField(default=0)
+    type = serializers.ChoiceField(required=False, choices=CommentTypeChoices.choices,
+                                   default=CommentTypeChoices.TYPE_NORMAL)
 
     form = None
 
@@ -180,6 +183,7 @@ class WriteCommentSerializer(serializers.Serializer):
             'comment': self.form.get_comment_object(site_id=site.id)
         }
         resp['comment'].ip_address = self.request.META.get("REMOTE_ADDR", None)
+        resp['comment'].type = self.validated_data.get("type")
 
         if self.request.user.is_authenticated:
             resp['comment'].user = self.request.user
@@ -283,12 +287,15 @@ class ReadCommentSerializer(serializers.ModelSerializer):
     allow_reply = serializers.SerializerMethodField()
     permalink = serializers.SerializerMethodField()
     flags = ReadFlagField(many=True, read_only=True)
+    type = serializers.CharField(label="评论类型", read_only=True)
+    avatar_color = serializers.SerializerMethodField(label="头像颜色")
 
     class Meta:
         model = XtdComment
         fields = ('id', 'user_name', 'user_url', 'user_moderator',
                   'user_avatar', 'permalink', 'comment', 'submit_date',
-                  'parent_id', 'level', 'is_removed', 'allow_reply', 'flags')
+                  'parent_id', 'level', 'is_removed', 'allow_reply', 'flags',
+                  'type', 'avatar_color')
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs['context']['request']
@@ -322,7 +329,13 @@ class ReadCommentSerializer(serializers.ModelSerializer):
         return obj.allow_thread()
 
     def get_user_avatar(self, obj):
-        return import_string(settings.COMMENTS_XTD_API_GET_USER_AVATAR)(obj)
+        return ""
+        # return import_string(settings.COMMENTS_XTD_API_GET_USER_AVATAR)(obj)
+
+    def get_avatar_color(self, obj):
+        if obj.user and hasattr(obj.user, 'avatar_color'):
+            return obj.user.avatar_color
+        return None
 
     def get_permalink(self, obj):
         return ""

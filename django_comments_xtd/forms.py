@@ -7,12 +7,16 @@ from django_comments.forms import CommentForm
 from django_comments_xtd.conf import settings
 from django_comments_xtd.models import TmpXtdComment
 
+COMMENT_MAX_LENGTH = getattr(settings, 'COMMENT_MAX_LENGTH', 3000)
+
 
 class XtdCommentForm(CommentForm):
     followup = forms.BooleanField(required=False,
                                   label=_("Notify me about follow-up comments"))
     reply_to = forms.IntegerField(required=True, initial=0,
                                   widget=forms.HiddenInput())
+    comment = forms.CharField(label=_('Comment'), widget=forms.Textarea,
+                              max_length=COMMENT_MAX_LENGTH, required=False)
 
     def __init__(self, *args, **kwargs):
         comment = kwargs.pop("comment", None)
