@@ -18,7 +18,7 @@ test.run_tests = run_tests
 
 setup(
     name="wcc-python-sdk-comments",
-    version="1.0.2",
+    version="1.0.3",
     packages=find_packages(),
     include_package_data=True,
     license="MIT",
