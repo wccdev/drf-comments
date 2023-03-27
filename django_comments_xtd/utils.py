@@ -3,6 +3,10 @@
 
 from copy import copy
 import hashlib
+
+from django.utils import timezone, formats
+from django.utils.translation import activate, get_language
+
 try:
     import Queue as queue  # python2
 except ImportError:
@@ -114,3 +118,12 @@ def get_user_avatar(comment):
     path = hashlib.md5(comment.user_email.lower().encode('utf-8')).hexdigest()
     param = urlencode({'s': 48})
     return "//www.gravatar.com/avatar/%s?%s&d=identicon" % (path, param)
+
+
+def date_format(value):
+    activate(get_language())
+    if settings.USE_TZ:
+        date = timezone.localtime(value)
+    else:
+        date = value or timezone.now()
+    return formats.date_format(date, 'DATETIME_FORMAT', use_l10n=True)

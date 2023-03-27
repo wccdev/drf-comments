@@ -18,8 +18,7 @@ from django_comments_xtd.api import serializers
 from django_comments_xtd.models import (
     TmpXtdComment, LIKEDIT_FLAG, DISLIKEDIT_FLAG
 )
-from django_comments_xtd.utils import get_current_site_id
-
+from django_comments_xtd.utils import get_current_site_id, date_format
 
 XtdComment = get_model()
 
@@ -62,7 +61,7 @@ class CommentCreate(DefaultsMixin, generics.CreateAPIView):
                 'id': self.resp_dict['comment']['xtd_comment'].id,
                 'user_name': self.resp_dict['comment'].get('user_name', None),
                 'avatar_color': avatar_color,
-                'submit_date': self.resp_dict['comment'].get('submit_date', None),
+                'submit_date': date_format(self.resp_dict['comment'].get('submit_date', None)),
             })
             return response
         elif self.resp_dict['code'] in [202, 204, 403]:

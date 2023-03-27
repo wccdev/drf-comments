@@ -20,8 +20,7 @@ from django_comments_xtd.models import (TmpXtdComment, XtdComment,
                                         max_thread_level_for_content_type)
 from django_comments_xtd.signals import (should_request_be_authorized,
                                          confirmation_received)
-from django_comments_xtd.utils import get_app_model_options
-
+from django_comments_xtd.utils import get_app_model_options, date_format
 
 COMMENT_MAX_LENGTH = getattr(settings, 'COMMENT_MAX_LENGTH', None)
 
@@ -302,13 +301,14 @@ class ReadCommentSerializer(serializers.ModelSerializer):
         super(ReadCommentSerializer, self).__init__(*args, **kwargs)
 
     def get_submit_date(self, obj):
-        activate(get_language())
-        if settings.USE_TZ:
-            submit_date = timezone.localtime(obj.submit_date)
-        else:
-            submit_date = obj.submit_date
-        return formats.date_format(submit_date, 'DATETIME_FORMAT',
-                                   use_l10n=True)
+        # activate(get_language())
+        # if settings.USE_TZ:
+        #     submit_date = timezone.localtime(obj.submit_date)
+        # else:
+        #     submit_date = obj.submit_date
+        # return formats.date_format(submit_date, 'DATETIME_FORMAT',
+        #                            use_l10n=True)
+        return date_format(obj.submit_date)
 
     def get_comment(self, obj):
         if obj.is_removed:
