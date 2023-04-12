@@ -276,7 +276,7 @@ class ReadFlagField(serializers.RelatedField):
 class ReadCommentSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(max_length=50, read_only=True)
     user_url = serializers.CharField(read_only=True)
-    user_moderator = serializers.SerializerMethodField()
+    # user_moderator = serializers.SerializerMethodField()
     user_avatar = serializers.SerializerMethodField()
     submit_date = serializers.SerializerMethodField()
     parent_id = serializers.IntegerField(default=0, read_only=True)
@@ -287,14 +287,14 @@ class ReadCommentSerializer(serializers.ModelSerializer):
     permalink = serializers.SerializerMethodField()
     flags = ReadFlagField(many=True, read_only=True)
     type = serializers.CharField(label="评论类型", read_only=True)
-    avatar_color = serializers.SerializerMethodField(label="头像颜色")
+    extra_data = serializers.SerializerMethodField(label="额外数据")
 
     class Meta:
         model = XtdComment
-        fields = ('id', 'user_name', 'user_url', 'user_moderator',
+        fields = ('id', 'user_name', 'user_url',
                   'user_avatar', 'permalink', 'comment', 'submit_date',
                   'parent_id', 'level', 'is_removed', 'allow_reply', 'flags',
-                  'type', 'avatar_color')
+                  'type', 'extra_data')
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs['context']['request']
@@ -332,11 +332,11 @@ class ReadCommentSerializer(serializers.ModelSerializer):
         return ""
         # return import_string(settings.COMMENTS_XTD_API_GET_USER_AVATAR)(obj)
 
-    def get_avatar_color(self, obj):
-        if obj.user and hasattr(obj.user, 'avatar_color'):
-            return obj.user.avatar_color
-        return None
-
     def get_permalink(self, obj):
         return ""
         # return obj.get_absolute_url()
+
+    def get_extra_data(self, obj):
+        if obj.user and hasattr(obj.user, 'get_extra_data'):
+            return obj.user.get_extra_data()
+        return None

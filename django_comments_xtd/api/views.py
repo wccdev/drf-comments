@@ -49,19 +49,19 @@ class CommentCreate(DefaultsMixin, generics.CreateAPIView):
             response = super(CommentCreate, self).post(request, *args, **kwargs)
         else:
             if 'non_field_errors' in serializer.errors:
-                response_msg = serializer.errors['non_field_errors'][0]
+                response_msg = serializer.errors['non_field_errors']
             else:
                 response_msg = [k for k in six.iterkeys(serializer.errors)]
             return Response(response_msg, status=400)
         if self.resp_dict['code'] == 201:  # The comment has been created.
-            avatar_color = None
-            if self.resp_dict['comment'].get('user') and hasattr(self.resp_dict['comment']['user'], 'avatar_color'):
-                avatar_color = self.resp_dict['comment']['user'].avatar_color
+            extra_data = None
+            if self.resp_dict['comment'].get('user') and hasattr(self.resp_dict['comment']['user'], 'get_extra_data'):
+                extra_data = self.resp_dict['comment']['user'].get_extra_data()
             response.data.update({
                 'id': self.resp_dict['comment']['xtd_comment'].id,
                 'user_name': self.resp_dict['comment'].get('user_name', None),
-                'avatar_color': avatar_color,
                 'submit_date': date_format(self.resp_dict['comment'].get('submit_date', None)),
+                'extra_data': extra_data,
             })
             return response
         elif self.resp_dict['code'] in [202, 204, 403]:
