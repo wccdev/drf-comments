@@ -1,3 +1,5 @@
+import re
+
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.shortcuts import get_current_site
@@ -19,10 +21,18 @@ from django_comments_xtd.models import (TmpXtdComment, XtdComment,
                                         LIKEDIT_FLAG, DISLIKEDIT_FLAG,
                                         max_thread_level_for_content_type)
 from django_comments_xtd.signals import (should_request_be_authorized,
-                                         confirmation_received)
+                                         confirmation_received, comment_was_updated, comment_was_removed)
 from django_comments_xtd.utils import get_app_model_options, date_format
 
 COMMENT_MAX_LENGTH = getattr(settings, 'COMMENT_MAX_LENGTH', None)
+
+pattern = re.compile(r"^(<p>\s*?</p>)+|(<p>\s*?</p>)+$")
+
+
+def handle_comment(s: str) -> str:
+    if s:
+        return pattern.sub("", s).strip()
+    return s
 
 
 class WriteCommentSerializer(serializers.Serializer):
@@ -114,6 +124,7 @@ class WriteCommentSerializer(serializers.Serializer):
         data.update({
             "name": data.get("name", self.get_comment_name()),
             "email": data.get("email", self.get_comment_email()),
+            "comment": handle_comment(data.get("comment")),
         })
         ctype = data.get("content_type")
         object_pk = data.get("object_pk")
@@ -198,8 +209,8 @@ class WriteCommentSerializer(serializers.Serializer):
 
         # Replicate logic from django_comments_xtd.views.on_comment_was_posted.
         if (
-            not settings.COMMENTS_XTD_CONFIRM_EMAIL or
-            self.request.user.is_authenticated
+                not settings.COMMENTS_XTD_CONFIRM_EMAIL or
+                self.request.user.is_authenticated
         ):
             if views._get_comment_if_exists(resp['comment']) is None:
                 new_comment = views._create_comment(resp['comment'])
@@ -294,7 +305,7 @@ class ReadCommentSerializer(serializers.ModelSerializer):
         fields = ('id', 'user_name', 'user_url',
                   'user_avatar', 'permalink', 'comment', 'submit_date',
                   'parent_id', 'level', 'is_removed', 'allow_reply', 'flags',
-                  'type', 'extra_data')
+                  'type', 'extra_data', 'pinned_at', 'is_edited')
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs['context']['request']
@@ -340,3 +351,53 @@ class ReadCommentSerializer(serializers.ModelSerializer):
         if obj.user and hasattr(obj.user, 'get_extra_data'):
             return obj.user.get_extra_data()
         return None
+
+
+class DestroyCommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = XtdComment
+        fields = ('id',)
+
+
+class UpdateCommentSerializer(serializers.ModelSerializer):
+    comment = serializers.CharField(max_length=COMMENT_MAX_LENGTH, allow_blank=True)
+    extra_data = serializers.SerializerMethodField(label="额外数据", read_only=True)
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs['context']['request']
+        super(UpdateCommentSerializer, self).__init__(*args, **kwargs)
+
+    def get_extra_data(self, obj):
+        if obj.user and hasattr(obj.user, 'get_extra_data'):
+            return obj.user.get_extra_data()
+        return None
+
+    def update(self, instance, validated_data):
+        original_comment = handle_comment(instance.comment)
+        if self.request.user.pk != instance.user_id:
+            raise Exception("You can only update your own comment")
+
+        new_comment = handle_comment(validated_data.get('comment'))
+        instance.comment = new_comment
+        if new_comment:
+            instance.is_edited = True
+            instance.save()
+            comment_was_updated.send(
+                sender=instance.__class__,
+                comment=instance,
+                original_comment=original_comment,
+                new_comment=new_comment,
+            )
+        else:
+            # 当用户编辑后的评论为空时，删除该评论
+            instance.is_edited = True
+            instance.is_removed = True
+            instance.save()
+            comment_was_removed.send(sender=instance.__class__, comment=instance)
+
+        return instance
+
+    class Meta:
+        model = XtdComment
+        fields = ("comment", "type", "id", "submit_date", "pinned_at", "is_edited", "extra_data")
+        read_only_fields = ("type", "submit_date", "pinned_at", "is_edited")

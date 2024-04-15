@@ -3,6 +3,7 @@ import six
 from django.db.models import Prefetch
 from django.contrib.contenttypes.models import ContentType
 from django.utils.module_loading import import_string
+from django.utils import timezone
 
 from django_comments.models import CommentFlag
 from django_comments.views.moderation import perform_flag
@@ -13,11 +14,13 @@ from rest_framework.schemas.openapi import AutoSchema
 
 from django_comments_xtd import views
 from django_comments_xtd import get_model
+from django_comments_xtd.api.serializers import DestroyCommentSerializer, UpdateCommentSerializer
 from django_comments_xtd.conf import settings
 from django_comments_xtd.api import serializers
 from django_comments_xtd.models import (
     TmpXtdComment, LIKEDIT_FLAG, DISLIKEDIT_FLAG
 )
+from django_comments_xtd.signals import comment_was_removed, comment_was_pinned
 from django_comments_xtd.utils import get_current_site_id, date_format
 
 XtdComment = get_model()
@@ -97,7 +100,8 @@ class CommentList(DefaultsMixin, generics.ListAPIView):
                     content_type=content_type,
                     object_pk=object_pk_arg,
                     site__pk=get_current_site_id(self.request),
-                    is_public=True
+                    is_public=True,
+                    is_removed=False
                 ).order_by('-submit_date')
         return qs
 
@@ -171,3 +175,47 @@ def preview_user_avatar(request, *args, **kwargs):
         temp_comment['user'] = request.user
     get_user_avatar = import_string(settings.COMMENTS_XTD_API_GET_USER_AVATAR)
     return Response({'url': get_user_avatar(temp_comment)})
+
+
+class CommentDestroy(DefaultsMixin, generics.DestroyAPIView):
+    queryset = XtdComment.objects.all()
+    serializer_class = DestroyCommentSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.user != request.user:
+            raise Exception("不允许删除他人评论")
+        self.perform_destroy(instance)
+        comment_was_removed.send(sender=instance.__class__, comment=instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def perform_destroy(self, instance):
+        instance.is_removed = True
+        instance.save()
+
+
+class CommentPin(DefaultsMixin, generics.UpdateAPIView):
+    queryset = XtdComment.objects.all()
+    serializer_class = DestroyCommentSerializer
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        if instance.pinned_at:
+            instance.pinned_at = None
+        else:
+            instance.pinned_at = timezone.now()
+        instance.save()
+        comment_was_pinned.send(sender=instance.__class__, comment=instance)
+
+        return Response(status=status.HTTP_200_OK)
+
+
+class CommentUpdate(DefaultsMixin, generics.UpdateAPIView):
+    """更新评论"""
+    queryset = XtdComment.objects.all()
+    serializer_class = UpdateCommentSerializer
+

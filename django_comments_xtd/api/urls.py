@@ -3,7 +3,7 @@ from django.urls import path, re_path
 from .views import (
     CommentCount, CommentCreate, CommentList,
     CreateReportFlag, ToggleFeedbackFlag,
-    preview_user_avatar,
+    preview_user_avatar, CommentDestroy, CommentPin, CommentUpdate,
 )
 
 urlpatterns = [
@@ -21,4 +21,10 @@ urlpatterns = [
          name='comments-xtd-api-feedback'),
     path('flag/', CreateReportFlag.as_view(),
          name='comments-xtd-api-flag'),
+    path('<int:pk>/delete/', CommentDestroy.as_view(),
+         name='comments-xtd-api-destroy'),
+    path('<int:pk>/pin/', CommentPin.as_view(),
+         name='comments-xtd-api-pin'),
+    path('<int:pk>/', CommentUpdate.as_view(),
+         name='comments-xtd-api-update'),
 ]

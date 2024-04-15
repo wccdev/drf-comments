@@ -18,7 +18,7 @@ test.run_tests = run_tests
 
 setup(
     name="wcc-python-sdk-comments",
-    version="1.0.5",
+    version="1.0.11",
     packages=find_packages(),
     include_package_data=True,
     license="MIT",
@@ -35,7 +35,7 @@ setup(
     maintainer_email="danirus@eml.cc",
     url="http://pypi.python.org/pypi/django-comments-xtd",
     install_requires=[
-        'Django>=3,<5',
+        'Django>=3.2',
         'django-contrib-comments>=2.2,<2.3',
         'djangorestframework>=3.12,<3.15',
         'docutils',

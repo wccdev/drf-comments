@@ -70,6 +70,8 @@ class XtdComment(Comment):
     nested_count = models.IntegerField(default=0, db_index=True)
     type = models.CharField(verbose_name="评论类型", max_length=16, choices=CommentTypeChoices.choices,
                             blank=True, default=CommentTypeChoices.TYPE_NORMAL)
+    pinned_at = models.DateTimeField("置顶时间", db_index=True, null=True, blank=True)
+    is_edited = models.BooleanField("是否被编辑", default=False)
     objects = XtdCommentManager()
     norel_objects = CommentManager()
 
